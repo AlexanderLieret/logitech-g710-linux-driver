@@ -43,23 +43,25 @@ Use the key shortcut utilities provided by your DE to make use of the additional
 Invoke the xmodmap to map the M1, M2, M3, and MR keys to modifier keys (ctrl, shift, etc). This can be done globally or in a bashrc file, etc. The driver will emit a press event for the active M* key when a G# key is pressed. For example:
 
 - M1 pressed
-  - emit M1 down
-  - emit M1 up
+  - activate M1 and corresponding LED
+  - emit nothing
 - G1 pressed
   - emit M1 down
   - emit G1 down
   - emit G2 up
   - emit M1 up
+- M3 pressed
+  - activate M3 and corresponding LED
+  - emit nothing
+- G1 pressed
+  - emit M1 down
+  - emit M3 down
+  - emit G1 down
+  - emit G2 up
+  - emit M1 up
+  - emit M3 up
 
-The end result is it looks like each G# key is pressed together with a modifier. Eqivalent to ctrl+G1, etc. Key mapping applications should pick the combination which allows for the original G1-6 * 3 = 18 keys instead of just G1-6 + 3 = 9.
-
-```
-./xmodmap
-```
-
-End result should be similar to https://www.youtube.com/watch?v=uzDpQJYsC1E.
-
-Example of utilizing exposed leds https://gist.github.com/boombatower/ccdab16926c919eee6b2.
+The end result is it looks like each G# key is pressed together with the selected modifiers. Eqivalent to ctrl+G1, etc. Key mapping applications should pick the combination which allows for the original G1-6 * 4! = 144 keys instead of just G1-6 + 4 = 10.
 
 API
 --------------------------

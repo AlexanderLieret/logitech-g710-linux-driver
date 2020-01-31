@@ -32,22 +32,22 @@
 #define LOGITECH_KEY_MAP_SIZE 16
 
 static const u8 g710_plus_key_map[LOGITECH_KEY_MAP_SIZE] = {
-    0, /* unused */
-    0, /* unused */
-    0, /* unused */
-    0, /* unused */
-    KEY_F13, /* M1 */ // 4
-    KEY_F14, /* M2 */
-    KEY_F15, /* M3 */
-    KEY_F16, /* MR */ // 7
-    KEY_F17, /* G1 */
-    KEY_F18, /* G2 */
-    KEY_F19, /* G3 */
-    KEY_F20, /* G4 */
-    KEY_F21, /* G5 */
-    KEY_F22, /* G6 */
-    0, /* unused */
-    0, /* unused */
+    0,       /* unused */
+    0,       /* unused */
+    0,       /* unused */
+    0,       /* unused */
+    KEY_F19, /* M1 */
+    KEY_F20, /* M2 */
+    KEY_F21, /* M3 */
+    KEY_F22, /* MR */
+    KEY_F13, /* G1 */
+    KEY_F14, /* G2 */
+    KEY_F15, /* G3 */
+    KEY_F16, /* G4 */
+    KEY_F17, /* G5 */
+    KEY_F18, /* G6 */
+    0,       /* unused */
+    0,       /* unused */
 };
 
 /* Convenience macros */
@@ -62,7 +62,7 @@ struct lg_g710_plus_data {
     struct hid_report *other_buttons_led_report; /* Controls the backlight of other buttons */
     struct hid_report *gamemode_report; /* Controls the backlight of other buttons */
 
-    u8 modifier_key; /* holds the state of the 4 modifier keys, ie which one is active */
+    u8 modifier_state; /* holds the state of the 4 modifier keys, ie which one is active */
     u16 macro_button_state; /* Holds the last state of the G1-G6, M1-MR buttons. Required to know which buttons were pressed and which were released */
     struct hid_device *hdev; 
     struct input_dev *input_dev;
@@ -109,10 +109,10 @@ static struct attribute *lg_g710_plus_attrs[] = {
 
 // handles key presses
 static int lg_g710_plus_extra_key_event(struct hid_device *hdev, struct hid_report *report, u8 *data, int size) {
-    u8 i;
+    u8 i, j;
     u16 keys_pressed;
     struct lg_g710_plus_data* g710_data = lg_g710_plus_get_data(hdev);
-//     bool modifier_changed = false;
+    bool modifier_changed = false;
     if (g710_data == NULL || size < 3 || data[0] != 3) {
         return 1; /* cannot handle the event */
     }
@@ -121,37 +121,72 @@ static int lg_g710_plus_extra_key_event(struct hid_device *hdev, struct hid_repo
     for (i = 0; i < LOGITECH_KEY_MAP_SIZE; i++) {
         // != -> mapped key
         // BIT_AT() -> key state changed from last state
-        if (g710_plus_key_map[i] != 0 && (BIT_AT(keys_pressed, i) != BIT_AT(g710_data->macro_button_state, i))) {
-            // TODO Check for M# key and record state.
-            if (g710_plus_key_map[i] == KEY_F13 ||
-                g710_plus_key_map[i] == KEY_F14 ||
-                g710_plus_key_map[i] == KEY_F15 ||
-                g710_plus_key_map[i] == KEY_F16
-            ) {
-              // set led
-//               modifier_changed = true; // TODO perhaps just set right here rather than other for loop
-                // store the keycode so it can easily emit later when G# keys are pressed
-                g710_data->modifier_key = g710_plus_key_map[i];
-                // since no break, last one wins.
-                // only ugly part is that we could call led multiple times if multiple M# keys are pressed
-                //unsigned long key_mask
-                lg_g710_plus_store_led_macro_internal(g710_data, 1 << (i - 4));
-
-                input_report_key(g710_data->input_dev, g710_plus_key_map[i], BIT_AT(keys_pressed, i) != 0);
-            }
-            else {
-                // it is a G# key!! emit the modifier
-                if (BIT_AT(keys_pressed, i) != 0) {
-                    // changing to pressed: modifier first then g key
-                    input_report_key(g710_data->input_dev, g710_data->modifier_key, true);
+        if (g710_plus_key_map[i] != 0 && (BIT_AT(keys_pressed, i) != BIT_AT(g710_data->macro_button_state, i)))
+        {
+            switch (g710_plus_key_map[i])
+            {
+            // G1 to G6
+            case KEY_F13:
+            case KEY_F14:
+            case KEY_F15:
+            case KEY_F16:
+            case KEY_F17:
+            case KEY_F18:
+                if (BIT_AT(keys_pressed, i) != 0)
+                {
+                    // changing to pressed: modifiers first then g key
+                    for (j = 0; j < 4; j++)
+                        if (BIT_AT(g710_data->modifier_state, j))
+                            input_report_key(g710_data->input_dev, g710_plus_key_map[j + 4], true);
                     input_report_key(g710_data->input_dev, g710_plus_key_map[i], true);
                 }
                 else {
                     // changing to non-pressed: g key then modifier
                     input_report_key(g710_data->input_dev, g710_plus_key_map[i], false);
-                    input_report_key(g710_data->input_dev, g710_data->modifier_key, false);
+                    for (j = 0; j < 4; j++)
+                        if (BIT_AT(g710_data->modifier_state, j))
+                            input_report_key(g710_data->input_dev, g710_plus_key_map[j + 4], false);
                 }
+                break;
+
+                // M1
+            case KEY_F19:
+                if (BIT_AT(keys_pressed, i) != 0)
+                {
+                    modifier_changed = true;
+                    g710_data->modifier_state ^= 1 << 0;
+                }
+                break;
+                // M2
+            case KEY_F20:
+                if (BIT_AT(keys_pressed, i) != 0)
+                {
+                    modifier_changed = true;
+                    g710_data->modifier_state ^= 1 << 1;
+                }
+                break;
+                // M3
+            case KEY_F21:
+                if (BIT_AT(keys_pressed, i) != 0)
+                {
+                    modifier_changed = true;
+                    g710_data->modifier_state ^= 1 << 2;
+                }
+                break;
+                // MR
+            case KEY_F22:
+                if (BIT_AT(keys_pressed, i) != 0)
+                {
+                    modifier_changed = true;
+                    g710_data->modifier_state ^= 1 << 3;
+                }
+                break;
+
+            default:
+                break;
             }
+            if (modifier_changed)
+                lg_g710_plus_store_led_macro_internal(g710_data, g710_data->modifier_state);
         }
     }
     input_sync(g710_data->input_dev);

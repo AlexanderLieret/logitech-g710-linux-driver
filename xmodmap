@@ -1,7 +1,0 @@
-#!/bin/bash
-
-# set M1, M2, M3 as modifiers
-xmodmap -e "keycode 191 = Control_L"
-xmodmap -e "keycode 192 = Shift_L"
-xmodmap -e "keycode 193 = Alt_L"
-xmodmap -e "keycode 194 = Super_L"
